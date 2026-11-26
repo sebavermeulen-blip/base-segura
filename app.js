@@ -165,6 +165,20 @@ const practiced = (s) => s.type !== 'hoyno';
 const practicedThisMonth = () => { const m = dayKey().slice(0, 7); return new Set(db.sessions.filter((s) => practiced(s) && s.date.startsWith(m)).map((s) => s.date)).size; };
 const programIndex = () => db.sessions.filter((s) => s.type === 'completa').length;
 const aiReady = () => db.ai.consent && db.ai.apiKey;
+const MOODS = [
+  { e: '😣', label: 'Desbordado', act: 9 }, { e: '😟', label: 'Inquieto', act: 7 }, { e: '😐', label: 'Regular', act: 5 },
+  { e: '🙂', label: 'Bien', act: 3 }, { e: '😌', label: 'En calma', act: 1 },
+];
+function weekDots() {
+  const today = dayKey();
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = addDays(new Date(), i - 6), k = dayKey(d);
+    const sess = db.sessions.some((s) => s.date === k && practiced(s));
+    const any = sess || db.diary.some((e) => dayKey(new Date(e.ts)) === k);
+    const wd = d.toLocaleDateString('es-MX', { weekday: 'narrow' }).toUpperCase();
+    return `<div class="d ${k === today ? 'today' : ''}"><div class="dot ${sess ? 'on' : any ? 'part' : ''}">${sess ? '✦' : any ? '•' : ''}</div>${wd}</div>`;
+  }).join('');
+}
 
 function maxIntensityByDay(days) {
   const map = {};
@@ -262,6 +276,7 @@ function render() {
   const main = $('#view'); main.innerHTML = '';
   if (path.startsWith('/h/')) toolView(main, decodeURIComponent(path.slice(3)));
   else (routes[path] || routes['/'])(main);
+  main.classList.remove('enter'); void main.offsetWidth; main.classList.add('enter');
   const tab = path === '/' ? 'inicio' : path.startsWith('/h/') ? 'herramientas' : path.slice(1).split('/')[0];
   $$('.tabbar a').forEach((a) => { if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   window.scrollTo(0, 0);
@@ -278,20 +293,29 @@ route('/', (el) => {
   const hasData = db.sessions.length + db.diary.length > 0;
   const exportOld = hasData && (!db.settings.lastExport || Date.now() - db.settings.lastExport > 14 * 864e5);
   el.innerHTML = `
-    <p class="eyebrow">${new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-    <h1>${hello}</h1>
+    <div class="greet"><div class="orb" aria-hidden="true">${h < 12 ? '🌅' : h < 19 ? '☀️' : '🌙'}</div>
+      <div><p class="eyebrow">${new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}</p><h1>${hello}</h1></div></div>
     ${worsening() ? `<div class="card sos"><h3>Estos días han sido muy intensos</h3>
       <p>Varios días con intensidad de 8 o más. No tienes que cargarlo solo: revisa tu plan de seguridad y considera hablar con alguien.</p>
       <a class="btn sos" href="#/plan">Abrir mi plan de seguridad</a><a class="btn" href="#/ayuda">Líneas de ayuda</a></div>` : ''}
-    <a class="hero" href="#/checkin"><strong>¿Cómo estás ahora?</strong><span>Responde 3 preguntas y te sugiero qué puede ayudarte</span></a>
+    <a class="hero" href="#/checkin"><strong>¿Cómo estás ahora?</strong><span>Responde 3 preguntas y te sugiero qué puede ayudarte</span><span class="go">Empezar check-in →</span></a>
+    <div class="card"><h3>En una palabra, ¿cómo llegas?</h3>
+      <div class="moods">${MOODS.map((m) => `<button type="button" class="mood" data-act="${m.act}" aria-label="${m.label}">${m.e}<small>${m.label}</small></button>`).join('')}</div></div>
     <div class="card ${s ? 'soft' : ''}">
       ${s ? (practiced(s)
         ? `<h3>Sesión de hoy: hecha ✓</h3><p class="muted mt0">${s.type === 'minima' ? 'Versión mínima. Cuenta igual.' : s.type === 'dificil' ? 'Sesión de mañana difícil. Cuenta igual.' : 'Bien hecho por darte este tiempo.'}</p>${s.action ? `<p class="small mt0"><b>Para hoy:</b> ${esc(s.action)}</p>` : ''}`
         : `<h3>Hoy elegiste descansar</h3><p class="muted mt0">Está bien. Mañana es otro día.</p>`)
       : `<h3>Tu sesión de hoy</h3><p class="muted">${hardMorning() ? 'Ayer fue un día intenso: hoy hay una versión corta y amable.' : '10–15 minutos, o 2 si hoy cuesta más.'}</p><a class="btn primary" href="#/sesion">Empezar</a>`}
     </div>
-    <a class="sos-hero" href="#/calma"><strong>Necesito calmarme ya</strong><span>Cuerpo, tu tarjeta y un siguiente paso</span></a>
-    <a class="btn" href="#/charla">${aiReady() ? 'Hablar con el acompañante (IA)' : 'Activar el acompañante con IA'}</a>
+    <a class="sos-hero" href="#/calma"><strong>Necesito calmarme ya</strong><span>Cuerpo, tu tarjeta y un siguiente paso. Funciona sin internet.</span><span class="go">Calma ahora →</span></a>
+    <div class="tiles">
+      <a class="tile" href="#/charla" style="--c:var(--accent-soft)"><span class="ico">💬</span><b>Charla</b><span class="small">${aiReady() ? 'Habla con el acompañante' : 'Activa el acompañante con IA'}</span></a>
+      <a class="tile" href="#/herramientas" style="--c:#DDF0E7"><span class="ico">🧰</span><b>Herramientas</b><span class="small">29 técnicas para calmar y entender</span></a>
+      <a class="tile" href="#/diario-nuevo" style="--c:#FDE8D7"><span class="ico">✍️</span><b>Escribir</b><span class="small">Registra lo que pasó</span></a>
+      <a class="tile" href="#/patrones" style="--c:#FBE2EA"><span class="ico">📈</span><b>Lo que te funciona</b><span class="small">Tus patrones</span></a>
+    </div>
+    <div class="card"><h3>Tu semana</h3><p class="small muted mt0">Cada punto es un día en que te diste un momento. Si un día faltas, no se pierde nada.</p>
+      <div class="week">${weekDots()}</div></div>
     <div class="stat">
       <div><div class="num">${practicedThisMonth()}</div><div class="lbl">días practicados este mes</div></div>
       <div><div class="num">${db.diary.filter((e) => Date.now() - e.ts < 7 * 864e5).length}</div><div class="lbl">registros esta semana</div></div>
@@ -303,6 +327,10 @@ route('/', (el) => {
       <p class="small mt0">En Safari: toca <b>Compartir</b> → <b>Agregar a la pantalla de inicio</b>. Así funciona sin internet y como una app.</p></div>` : ''}
     ${exportOld ? `<div class="card"><h3>Haz una copia de tus datos</h3><p class="small muted">Todo vive solo en este iPhone. Una copia cifrada te protege si borras la app.</p><a class="btn" href="#/datos">Exportar copia cifrada</a></div>` : ''}
     <p class="small muted center" style="margin-top:24px">Base Segura acompaña tu bienestar emocional; no sustituye la psicoterapia.</p>${helpLink}`;
+  $$('.mood', el).forEach((b) => b.addEventListener('click', () => {
+    ci = { step: 0, themes: [], activation: +b.dataset.act, body: [], need: null, note: '' };
+    location.hash = '#/checkin';
+  }));
   $('#save-weekly', el)?.addEventListener('click', () => {
     const score = rangeVal(el, 'weekly');
     db.weekly.push({ ts: Date.now(), score }); db.settings.lastWeekly = Date.now(); save();
@@ -339,7 +367,7 @@ route('/checkin', (el) => {
     el.innerHTML = `${bar}<h1>Esto puede ayudarte</h1>
       <div class="card soft"><p class="mt0">${ci.themes.length ? `Hoy: ${esc(ci.themes.map(themeName).join(', ').toLowerCase())}.` : 'No está claro qué pasa, y eso también está bien.'} Activación ${ci.activation}/10.
       ${body ? '<br><b>Tu cuerpo está muy activado: empieza por calmarlo.</b> Con la alarma tan alta cuesta pensar con claridad.' : ''}</p></div>
-      ${recs.map((t, i) => `<a class="tool-row ${i === 0 ? 'first' : ''}" href="#/h/${t.id}?ci=${ci.id}"><div><b>${esc(t.title)}</b><div class="small muted">${esc(CATEGORIES[t.cat])} · ${t.mins} min · ${esc(t.from)}</div></div></a>`).join('')}
+      ${recs.map((t, i) => `<a class="tool-row ${i === 0 ? 'first' : ''}" data-cat="${t.cat}" href="#/h/${t.id}?ci=${ci.id}"><div><b>${esc(t.title)}</b><div class="small muted">${esc(CATEGORIES[t.cat])} · ${t.mins} min · ${esc(t.from)}</div></div></a>`).join('')}
       <a class="btn primary" href="#/charla?ci=${ci.id}">${aiReady() ? 'Hablar de esto con el acompañante' : 'Hablar de esto con la IA (activar)'}</a>
       <a class="btn" href="#/herramientas">Ver todas las herramientas</a>
       <button class="btn ghost" id="again">Hacer otro check-in</button>${helpLink}`;
@@ -361,9 +389,9 @@ const checkinById = (id) => db.diary.find((e) => e.id === id && e.kind === 'chec
 route('/herramientas', (el) => {
   const eff = toolEffect();
   el.innerHTML = `<h1>Herramientas</h1><p class="muted">De la terapia cognitivo-conductual, la terapia de esquemas, DBT, ACT, la compasión y el mindfulness. Después de usarlas, dime si te ayudaron: así la app aprende qué te funciona.</p>
-    ${Object.entries(CATEGORIES).map(([c, name]) => `<h2>${esc(name)}</h2>${TOOLS.filter((t) => t.cat === c).map((t) => `
-      <a class="tool-row" href="#/h/${t.id}"><div><b>${esc(t.title)}</b><div class="small muted">${t.mins} min · ${esc(t.from)}${eff[t.id] ? ` · te ayudó ${eff[t.id].avg.toFixed(1)}/10` : ''}</div></div></a>`).join('')}`).join('')}
-    <h2>Para entenderte más</h2><a class="tool-row" href="#/esquemas"><div><b>Esquemas: patrones que vienen de lejos</b><div class="small muted">Psicoeducación de la terapia de esquemas</div></div></a>`;
+    ${Object.entries(CATEGORIES).map(([c, name]) => `<div class="cat-head"><h2>${esc(name)}</h2></div>${TOOLS.filter((t) => t.cat === c).map((t) => `
+      <a class="tool-row" data-cat="${t.cat}" href="#/h/${t.id}"><div><b>${esc(t.title)}</b><div class="small muted">${t.mins} min · ${esc(t.from)}${eff[t.id] ? ` · te ayudó ${eff[t.id].avg.toFixed(1)}/10` : ''}</div></div></a>`).join('')}`).join('')}
+    <h2>Para entenderte más</h2><a class="tool-row" data-cat="esquemas" href="#/esquemas"><div><b>Esquemas: patrones que vienen de lejos</b><div class="small muted">Psicoeducación de la terapia de esquemas</div></div></a>`;
 });
 
 /* Cuerpo de una herramienta, reutilizable dentro de la sesión. Devuelve una función que lee las respuestas. */
@@ -407,7 +435,7 @@ function toolBody(container, t, prev = {}) {
 function toolView(el, id) {
   const t = toolById(id); if (!t) { location.hash = '#/herramientas'; return; }
   const ciId = params().get('ci');
-  el.innerHTML = `<p class="eyebrow">${esc(CATEGORIES[t.cat])} · ${t.mins} min · ${esc(t.from)}</p><h1>${esc(t.title)}</h1>
+  el.innerHTML = `<div class="tool-head" data-cat="${t.cat}"><p class="eyebrow">${esc(CATEGORIES[t.cat])} · ${t.mins} min · ${esc(t.from)}</p><h1>${esc(t.title)}</h1></div>
     <div id="tb"></div>
     <div class="card"><label class="mt0">¿Te ayudó? (0 a 10)</label>${range('rating', 5, '0 = nada', '10 = mucho')}
       <button class="btn primary" id="done">Guardar y terminar</button></div>
@@ -433,9 +461,9 @@ route('/calma', (el) => {
     el.innerHTML = `${bar}<p class="eyebrow">Paso 1 de ${N}</p><h1>Primero, el cuerpo</h1>
       <p>No tienes que resolver nada ahora. Solo respira conmigo dos minutos.</p><div id="br"></div>
       <details><summary>Otras opciones rápidas</summary>
-        <a class="tool-row" href="#/h/agua-fria"><div><b>Agua fría en la cara</b><div class="small muted">Baja la intensidad en segundos</div></div></a>
-        <a class="tool-row" href="#/h/movimiento"><div><b>Mover el cuerpo 5 minutos</b></div></a>
-        <a class="tool-row" href="#/h/grounding"><div><b>5-4-3-2-1: volver al presente</b></div></a></details>
+        <a class="tool-row" data-cat="cuerpo" href="#/h/agua-fria"><div><b>Agua fría en la cara</b><div class="small muted">Baja la intensidad en segundos</div></div></a>
+        <a class="tool-row" data-cat="cuerpo" href="#/h/movimiento"><div><b>Mover el cuerpo 5 minutos</b></div></a>
+        <a class="tool-row" data-cat="cuerpo" href="#/h/grounding"><div><b>5-4-3-2-1: volver al presente</b></div></a></details>
       ${nav()}${helpLink}`;
     breathing($('#br', el), 120);
   } else if (sos.step === 1) {
@@ -453,9 +481,9 @@ route('/calma', (el) => {
   } else {
     const recs = recommend({ themes: sos.themes, activation: 5 }, 3, { excludeBody: true });
     el.innerHTML = `${bar}<p class="eyebrow">Paso 4 de ${N}</p><h1>¿Y ahora?</h1><p class="muted">Elige un solo paso. El resto puede esperar.</p>
-      ${recs.map((t) => `<a class="tool-row" href="#/h/${t.id}"><div><b>${esc(t.title)}</b><div class="small muted">${t.mins} min · ${esc(t.from)}</div></div></a>`).join('')}
-      <a class="tool-row" href="#/charla"><div><b>Hablarlo con el acompañante (IA)</b></div></a>
-      <a class="tool-row" href="#/h/contacto"><div><b>Escribirle a alguien de confianza</b></div></a>
+      ${recs.map((t) => `<a class="tool-row" data-cat="${t.cat}" href="#/h/${t.id}"><div><b>${esc(t.title)}</b><div class="small muted">${t.mins} min · ${esc(t.from)}</div></div></a>`).join('')}
+      <a class="tool-row" data-cat="charla" href="#/charla"><div><b>Hablarlo con el acompañante (IA)</b></div></a>
+      <a class="tool-row" data-cat="vinculos" href="#/h/contacto"><div><b>Escribirle a alguien de confianza</b></div></a>
       <label>¿Qué tan intenso es ahora? (0 a 10)</label>${range('after', Math.max(0, (sos.d.before ?? 7) - 2))}
       <button class="btn primary" id="fin">Guardar cómo estoy</button>${helpLink}`;
     $('#fin', el).onclick = () => {
@@ -518,7 +546,7 @@ route('/charla', (el) => {
     save(); toast('Charla guardada'); location.hash = '#/';
   };
   $('#send', el).onclick = async () => {
-    const inp = $('#inp', el), text = inp.value.trim(); if (!text || streaming) return;
+    const inp = $('#inp', el), text = inp.value.trim(); if (streaming) return; if (!text) { inp.focus(); toast('Escribe algo primero'); return; }
     const { chat: send, looksLikeCrisis, describeError } = await loadAI();
     chat.messages.push({ role: 'user', text }); save(); inp.value = '';
     msgs.insertAdjacentHTML('beforeend', `<div class="bubble me">${esc(text).replace(/\n/g, '<br>')}</div>`);
@@ -864,13 +892,13 @@ route('/ayuda', (el) => {
 route('/mas', (el) => {
   el.innerHTML = `<h1>Más</h1>
     <div class="card">
-      <a class="row-link" href="#/sesion">Sesión de hoy</a><a class="row-link" href="#/diario">Diario</a>
-      <a class="row-link" href="#/patrones">Mis patrones</a><a class="row-link" href="#/esquemas">Esquemas</a>
-      <a class="row-link" href="#/tarjeta">Mi tarjeta</a><a class="row-link" href="#/cannabis">Cannabis: registro y plan</a>
-      <a class="row-link" href="#/plan">Mi plan de seguridad</a><a class="row-link" href="#/ayuda">Líneas de ayuda</a></div>
+      <a class="row-link" href="#/sesion"><span class="ico">🌅</span><span class="lbl">Sesión de hoy</span></a><a class="row-link" href="#/diario"><span class="ico">📔</span><span class="lbl">Diario</span></a>
+      <a class="row-link" href="#/patrones"><span class="ico">📈</span><span class="lbl">Mis patrones</span></a><a class="row-link" href="#/esquemas"><span class="ico">🧩</span><span class="lbl">Esquemas</span></a>
+      <a class="row-link" href="#/tarjeta"><span class="ico">🪪</span><span class="lbl">Mi tarjeta</span></a><a class="row-link" href="#/cannabis"><span class="ico">🌿</span><span class="lbl">Cannabis: registro y plan</span></a>
+      <a class="row-link" href="#/plan"><span class="ico">🛟</span><span class="lbl">Mi plan de seguridad</span></a><a class="row-link" href="#/ayuda"><span class="ico">📞</span><span class="lbl">Líneas de ayuda</span></a></div>
     <div class="card">
-      <a class="row-link" href="#/ia">Acompañante con IA</a><a class="row-link" href="#/alarmas">Alarmas de la mañana (Atajos)</a>
-      <a class="row-link" href="#/datos">Mis datos: copia, importar, borrar</a><a class="row-link" href="#/acerca">Acerca de y buscar terapeuta</a></div>`;
+      <a class="row-link" href="#/ia"><span class="ico">💬</span><span class="lbl">Acompañante con IA</span></a><a class="row-link" href="#/alarmas"><span class="ico">⏰</span><span class="lbl">Alarmas de la mañana (Atajos)</span></a>
+      <a class="row-link" href="#/datos"><span class="ico">🔒</span><span class="lbl">Mis datos: copia, importar, borrar</span></a><a class="row-link" href="#/acerca"><span class="ico">ℹ️</span><span class="lbl">Acerca de y buscar terapeuta</span></a></div>`;
 });
 route('/alarmas', (el) => {
   const s = db.settings;
@@ -964,7 +992,7 @@ route('/acerca', (el) => {
     <p>Opción gratuita: Programa de Atención Psicológica a Distancia de la UNAM, <a href="tel:5550250855">55 5025 0855</a> (lunes a viernes, 8 a 18 h).</p>
     <h2>Privacidad</h2>
     <p class="small">Sin cuentas, sin rastreadores y sin servidores propios. Tus datos viven solo en tu iPhone. Si activas el acompañante, los mensajes de la charla se envían a Anthropic con tu clave.</p>
-    <p class="small muted">Versión demo 0.2</p>`;
+    <p class="small muted">Versión demo 0.3</p>`;
 });
 
 /* ═════════════ Arranque ═════════════ */
