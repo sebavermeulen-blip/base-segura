@@ -1,7 +1,7 @@
 // Guarda los archivos de la app para que funcione sin internet.
 // Al publicar una versión nueva, cambiar VERSION.
-const VERSION = 'base-segura-v0.1.0';
-const FILES = ['./', 'index.html', 'styles.css', 'app.js', 'content.js', 'manifest.webmanifest',
+const VERSION = 'base-segura-v0.2.0';
+const FILES = ['./', 'index.html', 'styles.css', 'app.js', 'content.js', 'ai.js', 'vendor/anthropic-sdk.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {

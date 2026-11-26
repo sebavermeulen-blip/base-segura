@@ -94,6 +94,35 @@ a.row-link::after { content: '›'; color: var(--ink-2); font-size: 22px; }
 .sos-hero strong { display: block; font-size: 22px; }
 .sos-hero span { opacity: .92; font-size: 15px; }
 
+.hero {
+  display: block; text-decoration: none; background: var(--accent); color: var(--accent-ink);
+  border-radius: 22px; padding: 22px 18px; margin: 16px 0;
+}
+.hero strong { display: block; font-size: 22px; }
+.hero span { opacity: .92; font-size: 15px; }
+
+a.tool-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px; margin: 8px 0; color: var(--ink); text-decoration: none;
+}
+a.tool-row::after { content: '›'; color: var(--ink-2); font-size: 22px; }
+a.tool-row.first { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+
+#msgs { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+.bubble { max-width: 88%; padding: 12px 14px; border-radius: 18px; line-height: 1.45; }
+.bubble.ai { align-self: flex-start; background: var(--surface); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+.bubble.me { align-self: flex-end; background: var(--accent); color: var(--accent-ink); border-bottom-right-radius: 6px; }
+.bubble .card { margin: 8px 0; }
+.inline-tool {
+  display: inline-block; margin: 6px 4px 2px 0; padding: 6px 12px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--ink); text-decoration: none; font-size: 15px; font-weight: 600;
+}
+.composer { display: flex; gap: 8px; align-items: flex-end; margin: 10px 0; }
+.composer textarea { min-height: 52px; }
+.composer .btn { width: auto; margin: 0; }
+.btn[disabled] { opacity: .5; }
+
 label { display: block; font-weight: 600; margin: 14px 0 6px; }
 input[type=text], input[type=number], input[type=password], input[type=time], textarea, select {
   width: 100%; font: inherit; color: var(--ink);
